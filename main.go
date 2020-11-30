@@ -22,17 +22,22 @@ func main() {
 	var url string
 	var folder string
 	var dest string
+	var token string
 	flag.StringVar(&ref, "ref", "master", "ref to fetch master or pull/1/head")
 	flag.StringVar(&url, "repo", "", "in the format: git@github.com:owner/repo.git")
 	flag.StringVar(&folder, "folder", "kubernetes", "folder to download")
 	flag.StringVar(&dest, "dest", "/tmp/dl", "folder to download files into")
+	flag.StringVar(&token, "token", "", "github token")
 
 	flag.Parse()
 	if url == "" {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
-	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
 	owner, repo := ownerAndRepo(url)
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
