@@ -47,22 +47,26 @@ func main() {
 
 	client := github.NewClient(tc)
 
-	if ref != "master" {
-		if strings.Contains(ref, "pull") {
-			log.Printf("Detected PR %v", ref)
-			x := strings.Split(ref, "/")[1]
-			prnumber, err := strconv.Atoi(x)
-			if err != nil {
-				panic(err)
-			}
-			pr, _, err := client.PullRequests.Get(ctx, owner, repo, prnumber)
-			if err == nil {
-				ref = pr.GetHead().GetSHA()
-				fmt.Println("Ref is ", ref)
-			} else {
-				panic(err)
-			}
+	if strings.Contains(ref, "pull") {
+		log.Printf("Detected PR %v", ref)
+		x := strings.Split(ref, "/")[1]
+		prnumber, err := strconv.Atoi(x)
+		if err != nil {
+			panic(err)
 		}
+		pr, _, err := client.PullRequests.Get(ctx, owner, repo, prnumber)
+		if err == nil {
+			ref = pr.GetHead().GetSHA()
+			fmt.Println("Ref is ", ref)
+		} else {
+			panic(err)
+		}
+	} else {
+		branch, _, err := client.Repositories.GetBranch(ctx, owner, repo, ref)
+		if err != nil {
+			panic(err)
+		}
+		ref = branch.GetCommit().GetSHA()
 	}
 	start := time.Now()
 	var wg sync.WaitGroup
@@ -102,10 +106,12 @@ func main() {
 	ss.Add(1)
 	r := Repo{org: owner, name: repo, ref: ref}
 	r.Get(folder, client, ch, &ss, dest)
-	fmt.Printf("Done downloading %v in %.3v secs\n", repo, (time.Now().Sub(start)))
+	fmt.Printf("STATUS=\"Done downloading %v in %.3v secs\"\n", repo, (time.Now().Sub(start)))
 	ss.Wait()
 	close(ch)
 	wg.Wait()
+	fmt.Printf("HASH=%v\n", ref)
+	os.Setenv("HASH", ref)
 }
 
 type file struct {
