@@ -26,7 +26,7 @@ func main() {
 	flag.StringVar(&ref, "ref", "master", "ref to fetch master or pull/1/head")
 	flag.StringVar(&url, "repo", "", "in the format: git@github.com:owner/repo.git")
 	flag.StringVar(&folder, "folder", "kubernetes", "folder to download")
-	flag.StringVar(&dest, "dest", "/tmp/dl", "folder to download files into")
+	flag.StringVar(&dest, "dest", "/tmp/dl/", "folder to download files into")
 	flag.StringVar(&token, "token", "", "github token")
 
 	flag.Parse()
@@ -37,6 +37,9 @@ func main() {
 	if token == "" {
 		flag.PrintDefaults()
 		os.Exit(1)
+	}
+	if !strings.HasSuffix(dest, "/") {
+		dest = dest + "/"
 	}
 	owner, repo := ownerAndRepo(url)
 	ctx := context.Background()
@@ -98,18 +101,19 @@ func main() {
 				if err != nil {
 					log.Println(err)
 				}
+				wg.Done()
 			}(v)
-			wg.Done()
+
 		}
 	}(ch)
 	var ss sync.WaitGroup
 	ss.Add(1)
 	r := Repo{org: owner, name: repo, ref: ref}
 	r.Get(folder, client, ch, &ss, dest)
-	fmt.Printf("STATUS=\"Done downloading %v in %.3v secs\"\n", repo, (time.Now().Sub(start)))
 	ss.Wait()
 	close(ch)
 	wg.Wait()
+	fmt.Printf("STATUS=\"Done downloading %v in %.3v secs\"\n", repo, (time.Now().Sub(start)))
 	fmt.Printf("HASH=%v\n", ref)
 	os.Setenv("HASH", ref)
 }
